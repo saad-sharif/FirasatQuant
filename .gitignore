@@ -1,0 +1,28 @@
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Data / generated output
+data/
+
+# Secrets / local config overrides
+.env
+*.env
+secrets.yaml
+*_secrets.yaml
+
+# OS / editor
+.DS_Store
+.vscode/
