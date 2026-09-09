@@ -6,7 +6,7 @@ asttokens==3.0.2
 attrs==26.1.0
 ccxt==4.5.78
 certifi==2026.6.17
-cffi==2.0.0
+cffi==2.1.1
 charset-normalizer==3.4.7
 cloudpickle==3.1.2
 coincurve==21.0.0
@@ -16,6 +16,8 @@ cryptography==50.0.1
 debugpy==1.8.21
 executing==2.2.1
 frozenlist==1.8.0
+gevent==26.8.0
+greenlet==3.5.5
 idna==3.18
 ipykernel==7.3.0
 ipython==9.17.1
@@ -41,7 +43,7 @@ pure_eval==0.2.3
 pycparser==3.0
 Pygments==2.21.0
 python-dateutil==2.9.0.post0
-python-dotenv==1.1.1
+python-dotenv==1.2.3
 pyzmq==27.2.0
 requests==2.34.2
 scikit-learn==1.9.0
@@ -55,6 +57,9 @@ typing_extensions==4.16.0
 tzdata==2026.3
 urllib3==2.7.0
 wcwidth==0.8.3
+websocket-client==1.9.2
 winloop==0.6.3
 yarl==1.24.5
 zlib-ng==1.0.0
+zope.event==6.2
+zope.interface==8.6
