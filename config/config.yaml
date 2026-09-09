@@ -1,0 +1,7 @@
+ingestion:
+  symbol: btcusdt
+  streams:
+    - trade # every individual trade
+    - bookTicker # every best bid/ask update
+    - kline_1m # every 1 minute candlestick
+  data_dir: data

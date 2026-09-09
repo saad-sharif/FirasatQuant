@@ -44,6 +44,7 @@ pycparser==3.0
 Pygments==2.21.0
 python-dateutil==2.9.0.post0
 python-dotenv==1.2.3
+PyYAML==6.0.3
 pyzmq==27.2.0
 requests==2.34.2
 scikit-learn==1.9.0
