@@ -1,10 +1,12 @@
 -- Run this against the `firasatquant` database (public schema).
 
-CREATE TABLE IF NOT EXISTS trades (
-    trade_id        BIGINT PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS agg_trades (
+    agg_trade_id    BIGINT PRIMARY KEY,
     symbol          TEXT NOT NULL,
     price           NUMERIC NOT NULL,
     quantity        NUMERIC NOT NULL,
+    first_trade_id  BIGINT NOT NULL,
+    last_trade_id   BIGINT NOT NULL,
     trade_time      TIMESTAMPTZ NOT NULL,
     event_time      TIMESTAMPTZ NOT NULL,
     is_buyer_maker  BOOLEAN NOT NULL
@@ -38,4 +40,13 @@ CREATE TABLE IF NOT EXISTS klines_1m (
     first_trade_id          BIGINT NOT NULL,
     last_trade_id           BIGINT NOT NULL,
     PRIMARY KEY (symbol, interval, open_time)
+);
+
+CREATE TABLE IF NOT EXISTS depth_snapshots (
+    id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    symbol          TEXT NOT NULL,
+    last_update_id  BIGINT NOT NULL,
+    bids            JSONB NOT NULL,
+    asks            JSONB NOT NULL,
+    received_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );

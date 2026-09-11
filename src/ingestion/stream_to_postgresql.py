@@ -12,26 +12,46 @@ load_dotenv()
 
 
 class PostgresStreamWriter:
-    """Writes parsed Binance stream payloads (trade / bookTicker / kline_1m)
-    to their matching Postgres table. Can be used as a live message handler
-    or to backfill from the JSONL files BinanceStreamIngestor writes."""
+    """Writes parsed Binance stream payloads (aggTrade / bookTicker / kline_1m /
+    depth20@100ms) to their matching Postgres table. Can be used as a live
+    message handler or to backfill from the JSONL files BinanceStreamIngestor
+    writes."""
 
     def __init__(self, dsn: str | None = None):
         self.conn = psycopg2.connect(dsn or os.environ["DATABASE_URL"])
         self.conn.autocommit = True
+        # Partial depth payloads don't carry the symbol themselves, so callers
+        # that will process a depth20@100ms stream must set this first.
+        self.symbol = None
 
     def close(self):
         self.conn.close()
 
-    def write_trade(self, data: dict):
+    def write_agg_trade(self, data: dict):
         with self.conn.cursor() as cur:
             cur.execute(
                 """
-                INSERT INTO trades (trade_id, symbol, price, quantity, trade_time, event_time, is_buyer_maker)
-                VALUES (%s, %s, %s, %s, to_timestamp(%s / 1000.0), to_timestamp(%s / 1000.0), %s)
-                ON CONFLICT (trade_id) DO NOTHING
+                INSERT INTO agg_trades (
+                    agg_trade_id, symbol, price, quantity, first_trade_id, last_trade_id,
+                    trade_time, event_time, is_buyer_maker
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, to_timestamp(%s / 1000.0), to_timestamp(%s / 1000.0), %s)
+                ON CONFLICT (agg_trade_id) DO NOTHING
                 """,
-                (data["t"], data["s"], data["p"], data["q"], data["T"], data["E"], data["m"]),
+                (
+                    data["a"], data["s"], data["p"], data["q"], data["f"], data["l"],
+                    data["T"], data["E"], data["m"],
+                ),
+            )
+
+    def write_depth(self, data: dict):
+        with self.conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO depth_snapshots (symbol, last_update_id, bids, asks)
+                VALUES (%s, %s, %s, %s)
+                """,
+                (self.symbol, data["lastUpdateId"], json.dumps(data["bids"]), json.dumps(data["asks"])),
             )
 
     def write_book_ticker(self, data: dict):
@@ -81,9 +101,10 @@ class PostgresStreamWriter:
             )
 
     WRITERS = {
-        "trade": write_trade,
+        "aggTrade": write_agg_trade,
         "bookTicker": write_book_ticker,
         "kline_1m": write_kline,
+        "depth20@100ms": write_depth,
     }
 
     def write(self, stream: str, data: dict):
@@ -99,6 +120,7 @@ class PostgresStreamWriter:
     def backfill_from_config(self, config: dict):
         ingestion_cfg = config["ingestion"]
         symbol = ingestion_cfg["symbol"].lower()
+        self.symbol = symbol.upper()
         data_dir = ingestion_cfg["data_dir"]
         for stream in ingestion_cfg["streams"]:
             path = os.path.join(PROJECT_ROOT, data_dir, f"{symbol}_{stream}.jsonl")
@@ -121,6 +143,7 @@ class PostgresStreamWriter:
     def follow_from_config(self, config: dict, poll_interval: float = 1.0):
         ingestion_cfg = config["ingestion"]
         symbol = ingestion_cfg["symbol"].lower()
+        self.symbol = symbol.upper()
         data_dir = ingestion_cfg["data_dir"]
         threads = [
             threading.Thread(

@@ -1,7 +1,8 @@
 ingestion:
   symbol: btcusdt
   streams:
-    - trade # every individual trade
+    - aggTrade # trades aggregated per taker order at a given price
     - bookTicker # every best bid/ask update
     - kline_1m # every 1 minute candlestick
+    - depth20@100ms # top 20 order book levels, every 100ms
   data_dir: data
