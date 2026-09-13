@@ -100,6 +100,29 @@ class PostgresStreamWriter:
                 ),
             )
 
+    def write_kline_from_rest(self, symbol: str, interval: str, candle: list):
+        """Insert a closed candle from Binance's REST /api/v3/klines endpoint,
+        which lacks the f/L (first/last trade id) fields the websocket kline
+        stream provides."""
+        open_time, o, h, l, c, v, close_time, quote_v, n, taker_base_v, taker_quote_v, _ = candle
+        with self.conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO klines_1m (
+                    symbol, interval, open_time, close_time, open_price, close_price,
+                    high_price, low_price, base_volume, quote_volume,
+                    taker_buy_base_volume, taker_buy_quote_volume, num_trades,
+                    is_closed, first_trade_id, last_trade_id
+                )
+                VALUES (
+                    %s, %s, to_timestamp(%s / 1000.0), to_timestamp(%s / 1000.0), %s, %s,
+                    %s, %s, %s, %s, %s, %s, %s, TRUE, NULL, NULL
+                )
+                ON CONFLICT (symbol, interval, open_time) DO NOTHING
+                """,
+                (symbol, interval, open_time, close_time, o, c, h, l, v, quote_v, taker_base_v, taker_quote_v, n),
+            )
+
     WRITERS = {
         "aggTrade": write_agg_trade,
         "bookTicker": write_book_ticker,

@@ -6,3 +6,8 @@ ingestion:
     - kline_1m # every 1 minute candlestick
     - depth20@100ms # top 20 order book levels, every 100ms
   data_dir: data
+
+strategy:
+  threshold_pct: 0.15 # pct price move over the lookback window that triggers a signal
+  lookback_minutes: 5
+  trade_amount_usd: 25 # fixed notional per trade
