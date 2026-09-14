@@ -1,12 +1,13 @@
 import matplotlib.pyplot as plt
 
 
-def build_equity_curve(rows: list[tuple], trades: list[dict], account_balance_usd: float):
+def build_equity_curve(rows: list[tuple], trades: list[dict], account_balance_usd: float, pnl_key: str = "pnl"):
     """Steps a starting balance up/down by each trade's pnl at its exit time,
-    aligned to the same timestamps as `rows` so it can share an x-axis with price."""
+    aligned to the same timestamps as `rows` so it can share an x-axis with
+    price. Pass pnl_key="gross_pnl" to build the pre-fee curve instead."""
     pnl_by_exit_time: dict = {}
     for t in trades:
-        pnl_by_exit_time[t["exit_time"]] = pnl_by_exit_time.get(t["exit_time"], 0.0) + t["pnl"]
+        pnl_by_exit_time[t["exit_time"]] = pnl_by_exit_time.get(t["exit_time"], 0.0) + t[pnl_key]
 
     equity = account_balance_usd
     times, values = [], []
@@ -18,30 +19,76 @@ def build_equity_curve(rows: list[tuple], trades: list[dict], account_balance_us
     return times, values
 
 
+def _pct_change(values: list[float]) -> list[float]:
+    base = values[0]
+    return [(v / base - 1) * 100 for v in values]
+
+
+def _plot_pct_change(price_times, price_values, equity_times, equity_values, symbol: str, title: str, gross_times=None, gross_values=None):
+    """All series plotted as % change from the start of the period, on one
+    shared axis -- price and portfolio value differ by orders of magnitude in
+    raw dollars, so that's the only way to actually compare their movements
+    rather than one line dwarfing the other. The optional gross curve (before
+    fees) shows how much of the strategy's real edge fee drag is eating."""
+    fig, ax = plt.subplots(figsize=(14, 6))
+
+    ax.plot(price_times, _pct_change(price_values), color="tab:blue", label=f"{symbol} price")
+    ax.plot(equity_times, _pct_change(equity_values), color="tab:orange", label="Portfolio value (net)")
+    if gross_times is not None:
+        ax.plot(gross_times, _pct_change(gross_values), color="tab:green", linestyle="--", label="Portfolio value (gross, before fees)")
+    ax.axhline(0, color="gray", linewidth=0.8, linestyle="--")
+
+    ax.set_xlabel("Time")
+    ax.set_ylabel("% change from start")
+    ax.legend(loc="upper left")
+
+    fig.suptitle(title)
+    fig.tight_layout()
+    return fig
+
+
 def plot_price_and_portfolio(rows: list[tuple], trades: list[dict], account_balance_usd: float, symbol: str = "BTCUSDT"):
-    """Returns a matplotlib Figure with symbol price and portfolio value plotted
-    against the same time axis on separate y-axes (their scales differ by orders
-    of magnitude)."""
+    """For the plain fixed-notional backtest in src/backtest/backtest_klines.py."""
     price_times = [ts for ts, _ in rows]
     price_values = [float(p) for _, p in rows]
     equity_times, equity_values = build_equity_curve(rows, trades, account_balance_usd)
+    gross_times, gross_values = build_equity_curve(rows, trades, account_balance_usd, pnl_key="gross_pnl")
 
-    fig, ax1 = plt.subplots(figsize=(14, 6))
+    return _plot_pct_change(
+        price_times,
+        price_values,
+        equity_times,
+        equity_values,
+        symbol,
+        f"{symbol} price vs. portfolio value (% change from start)",
+        gross_times,
+        gross_values,
+    )
 
-    ax1.plot(price_times, price_values, color="tab:blue", label=f"{symbol} price")
-    ax1.set_xlabel("Time")
-    ax1.set_ylabel(f"{symbol} price (USD)", color="tab:blue")
-    ax1.tick_params(axis="y", labelcolor="tab:blue")
 
-    ax2 = ax1.twinx()
-    ax2.plot(equity_times, equity_values, color="tab:orange", label="Portfolio value")
-    ax2.set_ylabel("Portfolio value (USD)", color="tab:orange")
-    ax2.tick_params(axis="y", labelcolor="tab:orange")
+def plot_leveraged_backtest(backtester, symbol: str = "BTCUSDT"):
+    """Same idea, for a backtester (LeveragedLimitBacktester or
+    LeveragedOrderFlowBacktester) that already tracks its own candles and
+    equity_curve. Only LeveragedOrderFlowBacktester tracks gross_equity_curve
+    -- the gross line is omitted if it's not present."""
+    price_times = [c.open_time for c in backtester.candles]
+    price_values = [c.close for c in backtester.candles]
+    equity_times = [ts for ts, _ in backtester.equity_curve]
+    equity_values = [eq for _, eq in backtester.equity_curve]
 
-    lines1, labels1 = ax1.get_legend_handles_labels()
-    lines2, labels2 = ax2.get_legend_handles_labels()
-    ax1.legend(lines1 + lines2, labels1 + labels2, loc="upper left")
+    gross_times = gross_values = None
+    gross_curve = getattr(backtester, "gross_equity_curve", None)
+    if gross_curve:
+        gross_times = [ts for ts, _ in gross_curve]
+        gross_values = [eq for _, eq in gross_curve]
 
-    fig.suptitle(f"{symbol} price vs. portfolio value")
-    fig.tight_layout()
-    return fig
+    return _plot_pct_change(
+        price_times,
+        price_values,
+        equity_times,
+        equity_values,
+        symbol,
+        f"{symbol} price vs. portfolio value (% change from start)",
+        gross_times,
+        gross_values,
+    )

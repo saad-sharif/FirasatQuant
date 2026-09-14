@@ -8,6 +8,6 @@ ingestion:
   data_dir: data
 
 strategy:
-  threshold_pct: 0.15 # pct price move over the lookback window that triggers a signal
+  threshold_pct: 0.25 # pct price move over the lookback window that triggers a signal
   lookback_minutes: 5
   trade_amount_usd: 25 # fixed notional per trade

@@ -110,7 +110,7 @@ if __name__ == "__main__":
 
     rows = fetch_closes(config["ingestion"]["symbol"])
     if len(rows) <= strategy.lookback_minutes:
-        raise SystemExit(f"Only {len(rows)} candles available -- run historical_backfill.py first.")
+        raise SystemExit(f"Only {len(rows)} candles available -- run historical_backfill_klines.py first.")
 
     print(f"Backtesting {len(rows)} 1-minute candles: {rows[0][0]} to {rows[-1][0]}")
     trades = run_backtest(rows, strategy, strategy_cfg["trade_amount_usd"])

@@ -5,6 +5,7 @@ import time
 
 import psycopg2
 from dotenv import load_dotenv
+from psycopg2.extras import execute_values
 
 from src.config import PROJECT_ROOT
 
@@ -42,6 +43,26 @@ class PostgresStreamWriter:
                     data["a"], data["s"], data["p"], data["q"], data["f"], data["l"],
                     data["T"], data["E"], data["m"],
                 ),
+            )
+
+    def write_agg_trades_batch(self, rows: list[tuple]):
+        """Bulk insert for backfilling from Binance's historical dump files.
+        Each row: (agg_trade_id, symbol, price, quantity, first_trade_id,
+        last_trade_id, trade_time, event_time, is_buyer_maker) -- trade_time
+        and event_time are the same value here since the historical dumps
+        only carry one timestamp per trade."""
+        with self.conn.cursor() as cur:
+            execute_values(
+                cur,
+                """
+                INSERT INTO agg_trades (
+                    agg_trade_id, symbol, price, quantity, first_trade_id, last_trade_id,
+                    trade_time, event_time, is_buyer_maker
+                )
+                VALUES %s
+                ON CONFLICT (agg_trade_id) DO NOTHING
+                """,
+                rows,
             )
 
     def write_depth(self, data: dict):

@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS agg_trades (
     is_buyer_maker  BOOLEAN NOT NULL
 );
 
+CREATE INDEX IF NOT EXISTS idx_agg_trades_symbol_trade_time ON agg_trades (symbol, trade_time);
+
 CREATE TABLE IF NOT EXISTS book_ticker (
     update_id       BIGINT PRIMARY KEY,
     symbol          TEXT NOT NULL,

@@ -30,6 +30,33 @@ class ThresholdStrategy:
         return "HOLD"
 
 
+class OrderFlowConfirmedStrategy:
+    """Wraps ThresholdStrategy's klines-based momentum signal with an
+    aggTrade order-flow confirmation: a BUY only fires if net aggressive
+    volume (taker buys minus taker sells) over the same window is positive,
+    a SELL only if it's negative. Meant to filter out the false breakouts a
+    pure price-threshold signal can't distinguish from real momentum."""
+
+    def __init__(self, threshold_pct: float, lookback_minutes: int):
+        self.base = ThresholdStrategy(threshold_pct, lookback_minutes)
+
+    @property
+    def lookback_minutes(self) -> int:
+        return self.base.lookback_minutes
+
+    def signal(self, closes: list[float], buy_volume: float, sell_volume: float) -> str:
+        base_signal = self.base.signal(closes)
+        if base_signal == "HOLD":
+            return "HOLD"
+
+        net_flow = buy_volume - sell_volume
+        if base_signal == "BUY" and net_flow > 0:
+            return "BUY"
+        if base_signal == "SELL" and net_flow < 0:
+            return "SELL"
+        return "HOLD"
+
+
 class LiveThresholdStrategy(ThresholdStrategy):
     """Reads the latest closes for `symbol` from klines_1m in Postgres and
     applies ThresholdStrategy against them."""
